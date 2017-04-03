@@ -228,16 +228,7 @@ static void conv_backward_wgrad(const float *X, const int xdims[4], const float 
   const auto out_h      = ydims[1] - filter_h + 1;
   const auto out_w      = ydims[2] - filter_w + 1;
 
-  for (const auto m : range(0, ydims[3])) {         // for each output feature map
-    for (const auto p : range(0, filter_h)) {       // filter height
-      for (const auto q : range(0, filter_w)) {     // filter width
-        for (const auto c : range(0, in_channel)) { // sum over all input feature maps
-          const auto woffset = p * wdims[1] * wdims[2] * wdims[3] + q * wdims[2] * wdims[3] + c * wdims[3] + m;
-          dE_dW[woffset]     = 0;
-        }
-      }
-    }
-  }
+  std::memset(dE_dX, 0, ydims[3] * filter_h, filter_w, in_channel);
 
   for (const auto i : range(0, ydims[0])) {
     for (const auto m : range(0, ydims[3])) {   // for each output feature map
@@ -263,37 +254,26 @@ static void conv_backward_wgrad(const float *X, const int xdims[4], const float 
 // backward propagation for dE/dX
 static void conv_backward_xgrad(const float *X, const int xdims[4], const float *W, const int wdims[4], const float *Y,
                                 const int ydims[4], const float *dE_dY, float *dE_dX) {
-  {
-    const auto filter_h   = wdims[0];
-    const auto filter_w   = wdims[1];
-    const auto in_channel = wdims[2];
-    const auto out_h      = ydims[1] - filter_h + 1;
-    const auto out_w      = ydims[2] - filter_w + 1;
+  const auto filter_h   = wdims[0];
+  const auto filter_w   = wdims[1];
+  const auto in_channel = wdims[2];
+  const auto out_h      = ydims[1] - filter_h + 1;
+  const auto out_w      = ydims[2] - filter_w + 1;
 
-    for (const auto i : range(0, ydims[0])) {
+  std::memset(dE_dX, 0, ydims[0] * ydims[1] * ydims[2] * in_channel);
+
+  for (const auto i : range(0, ydims[0])) {
+    for (const auto m : range(0, ydims[3])) {   // for each output feature map
       for (const auto w : range(0, ydims[2])) { // for each output element
         for (const auto h : range(0, ydims[1])) {
-          for (const auto c : range(0, in_channel)) { // sum over all input feature maps
-            const auto xoffset = i * xdims[1] * xdims[2] * xdims[3] + h * xdims[2] * xdims[3] + w * xdims[3] + c;
-            dE_dX[xoffset]     = 0;
-          }
-        }
-      }
-    }
-
-    for (const auto i : range(0, ydims[0])) {
-      for (const auto m : range(0, ydims[3])) {   // for each output feature map
-        for (const auto w : range(0, ydims[2])) { // for each output element
-          for (const auto h : range(0, ydims[1])) {
-            for (const auto p : range(0, filter_h)) {       // filter height
-              for (const auto q : range(0, filter_w)) {     // filter width
-                for (const auto c : range(0, in_channel)) { // sum over all input feature maps
-                  const auto yoffset = ((i * ydims[1] + h) * ydims[2] + w) * ydims[3] + m;
-                  const auto xoffset =
-                      i * xdims[1] * xdims[2] * xdims[3] + (h + p) * xdims[2] * xdims[3] + (w + q) * xdims[3] + c;
-                  const auto woffset = p * wdims[1] * wdims[2] * wdims[3] + q * wdims[2] * wdims[3] + c * wdims[3] + m;
-                  dE_dX[xoffset] += dE_dY[yoffset] * W[woffset];
-                }
+          for (const auto p : range(0, filter_h)) {       // filter height
+            for (const auto q : range(0, filter_w)) {     // filter width
+              for (const auto c : range(0, in_channel)) { // sum over all input feature maps
+                const auto yoffset = ((i * ydims[1] + h) * ydims[2] + w) * ydims[3] + m;
+                const auto xoffset =
+                    i * xdims[1] * xdims[2] * xdims[3] + (h + p) * xdims[2] * xdims[3] + (w + q) * xdims[3] + c;
+                const auto woffset = p * wdims[1] * wdims[2] * wdims[3] + q * wdims[2] * wdims[3] + c * wdims[3] + m;
+                dE_dX[xoffset] += dE_dY[yoffset] * W[woffset];
               }
             }
           }
@@ -301,282 +281,267 @@ static void conv_backward_xgrad(const float *X, const int xdims[4], const float 
       }
     }
   }
+}
 
-  void fully_forward(const float *X, const int xdims[2], float *W, const int wdims[2], float *Y, const int ydims[2]) {
-    for (const auto i : range(0, xdims[0])) {
-      for (const auto j : range(0, wdims[1])) {
-        float sum = 0;
-        for (const auto k : range(0, xdims[1])) {
-          sum += X[i * xdims[1] + k] * W[k * wdims[1] + j];
-        }
-        Y[i * wdims[1] + j] = sum;
+void fully_forward(const float *X, const int xdims[2], float *W, const int wdims[2], float *Y, const int ydims[2]) {
+  for (const auto i : range(0, xdims[0])) {
+    for (const auto j : range(0, wdims[1])) {
+      float sum = 0;
+      for (const auto k : range(0, xdims[1])) {
+        sum += X[i * xdims[1] + k] * W[k * wdims[1] + j];
       }
+      Y[i * wdims[1] + j] = sum;
     }
   }
+}
 
-  // Leslie: update the function
-  void fully_backward(const float *X, const int xdims[2], float *W, const int wdims[2], float *Y, const int ydims[2]) {
-    for (const auto i : range(0, xdims[0])) {
-      for (const auto j : range(0, wdims[1])) {
-        float sum = 0;
-        for (const auto k : range(0, xdims[1])) {
-          sum += X[i * xdims[1] + k] * W[k * wdims[1] + j];
-        }
-        Y[i * wdims[1] + j] = sum;
+// Leslie: update the function
+void fully_backward(const float *X, const int xdims[2], float *W, const int wdims[2], float *Y, const int ydims[2]) {
+  for (const auto i : range(0, xdims[0])) {
+    for (const auto j : range(0, wdims[1])) {
+      float sum = 0;
+      for (const auto k : range(0, xdims[1])) {
+        sum += X[i * xdims[1] + k] * W[k * wdims[1] + j];
       }
+      Y[i * wdims[1] + j] = sum;
     }
   }
+}
 
-  // Choose the guess with largest score
-  static void argmax(const float *X, const int xdims[2], int *Y) {
-    for (const auto i : range(0, xdims[0])) {
-      auto max_idx = 0;
-      auto max     = X[i * xdims[1]];
-      for (const auto j : range(0, xdims[1])) {
-        const auto elem = X[(i * xdims[1]) + j];
-        if (elem > max) {
-          max_idx = j;
-          max     = elem;
-        }
+// Choose the guess with largest score
+static void argmax(const float *X, const int xdims[2], int *Y) {
+  for (const auto i : range(0, xdims[0])) {
+    auto max_idx = 0;
+    auto max     = X[i * xdims[1]];
+    for (const auto j : range(0, xdims[1])) {
+      const auto elem = X[(i * xdims[1]) + j];
+      if (elem > max) {
+        max_idx = j;
+        max     = elem;
       }
-      Y[i] = max_idx;
     }
+    Y[i] = max_idx;
   }
+}
 
-  // Forward operation for the CNN, a combination of conv layer + average pooling + relu
-  void forward_operation(float *x, float *conv1, float *conv2, float *fc1, float *fc2, int *out) {
-    // conv layer
-    const int adims[] = {xdims[0], (xdims[1] - conv1dims[0] + 1), (xdims[2] - conv1dims[1] + 1), conv1dims[3]};
-    auto a            = zeros<float>(adims);
-    conv_forward_valid(x, xdims, conv1, conv1dims, a, adims);
+// Forward operation for the CNN, a combination of conv layer + average pooling + relu
+void forward_operation(float *x, float *conv1, float *conv2, float *fc1, float *fc2, int *out) {
+  // conv layer
+  const int adims[] = {xdims[0], (xdims[1] - conv1dims[0] + 1), (xdims[2] - conv1dims[1] + 1), conv1dims[3]};
+  auto a            = zeros<float>(adims);
+  conv_forward_valid(x, xdims, conv1, conv1dims, a, adims);
 
+  /// relu layer
+  relu4(a, adims);
+
+  // average pooling
+  const int pool_size = 2;
+  const int bdims[]   = {adims[0], adims[1] / pool_size, adims[2] / pool_size, adims[3]};
+  auto b              = zeros<float>(bdims);
+  average_pool(a, adims, pool_size, b, bdims);
+
+  // conv layer
+  const int cdims[] = {bdims[0], (bdims[1] - conv2dims[0] + 1), (bdims[2] - conv2dims[1] + 1), conv2dims[3]};
+  auto c            = zeros<float>(cdims);
+  conv_forward_valid(b, bdims, conv2, conv2dims, c, cdims);
+
+  // relu
+  relu4(c, cdims);
+
+  // average pooling
+  const int ddims[] = {cdims[0], cdims[1] / pool_size, cdims[2] / pool_size, cdims[3]};
+  auto d            = zeros<float>(ddims);
+  average_pool(c, cdims, pool_size, d, ddims);
+
+  // reshape
+  const int ddims2[] = {ddims[0], ddims[1] * ddims[2] * ddims[3]};
+
+  // matrix multiplication
+  const int edims[] = {ddims[0], fc1dims[1]};
+  auto e            = zeros<float>(edims);
+  fully_forward(d, ddims2, fc1, fc1dims, e, edims);
+
+  // relu
+  relu2(e, edims);
+
+  // matrix multiplication
+  const int fdims[] = {edims[0], fc2dims[1]};
+  auto f            = zeros<float>(fdims);
+  fully_forward(e, edims, fc2, fc2dims, f, fdims);
+
+  argmax(f, fdims, out);
+
+  delete[] a;
+  delete[] b;
+  delete[] c;
+  delete[] d;
+  delete[] e;
+  delete[] f;
+}
+
+// Backward operation for the CNN, a combination of conv layer + average pooling + relu
+void backward_operation(float *x, float *conv1, float *conv2, float *fc1, float *fc2, float *y, const float *y_orig) {
+  // conv layer
+  const int dydims[] = {xdims[0], (xdims[1] - conv1dims[0] + 1), (xdims[2] - conv1dims[1] + 1), conv1dims[3]};
+  auto dy            = zeros<float>(dydims);
+  auto dw            = zeros<float>(dydims);
+  auto dx            = zeros<float>(dydims);
+  conv_backward_ygrad(y_orig, y, dy, dydims);
+  conv_backward_wgrad(x, xdims, conv1, conv1dims, ydims, dy, dw);
+  conv_backward_xgrad(x, xdims, conv1, conv1dims, ydims, dy, dx);
+  /*
     /// relu layer
-    relu4(a, adims);
+    relu4(dw, dwdims);
+    relu4(dx, dxdims);
 
     // average pooling
     const int pool_size = 2;
-    const int bdims[]   = {adims[0], adims[1] / pool_size, adims[2] / pool_size, adims[3]};
-    auto b              = zeros<float>(bdims);
+    const int bdims[]   = {adims[0], adims[1] / pool_size, adims[2] / pool_size,
+                         adims[3]};
+    auto b = zeros<float>(bdims);
     average_pool(a, adims, pool_size, b, bdims);
-
-    // conv layer
-    const int cdims[] = {bdims[0], (bdims[1] - conv2dims[0] + 1), (bdims[2] - conv2dims[1] + 1), conv2dims[3]};
-    auto c            = zeros<float>(cdims);
-    conv_forward_valid(b, bdims, conv2, conv2dims, c, cdims);
-
-    // relu
-    relu4(c, cdims);
-
-    // average pooling
-    const int ddims[] = {cdims[0], cdims[1] / pool_size, cdims[2] / pool_size, cdims[3]};
-    auto d            = zeros<float>(ddims);
-    average_pool(c, cdims, pool_size, d, ddims);
-
-    // reshape
-    const int ddims2[] = {ddims[0], ddims[1] * ddims[2] * ddims[3]};
-
-    // matrix multiplication
-    const int edims[] = {ddims[0], fc1dims[1]};
-    auto e            = zeros<float>(edims);
-    fully_forward(d, ddims2, fc1, fc1dims, e, edims);
-
-    // relu
-    relu2(e, edims);
 
     // matrix multiplication
     const int fdims[] = {edims[0], fc2dims[1]};
     auto f            = zeros<float>(fdims);
-    fully_forward(e, edims, fc2, fc2dims, f, fdims);
+    fully_backward(e, edims, fc2, fc2dims, f, fdims);
 
     argmax(f, fdims, out);
 
     delete[] a;
     delete[] b;
-    delete[] c;
-    delete[] d;
-    delete[] e;
     delete[] f;
+  */
+}
+
+static void compare_solution(float *orig, float *comp) {
+}
+
+int main(int argc, char **argv) {
+
+  enum Mode { CPU = 1, GPU_BASIC, GPU_MATRIX };
+  Mode mode = (Mode) 1;
+
+  // Initialize host variables
+  // ----------------------------------------------
+  xdims[0] = FLAGS_batch_size;
+  rdims[0] = FLAGS_batch_size;
+
+  // Generate data into x and y
+  printf("Creating memory on host");
+
+  float *x = allocate<float>(xdims);
+  float *y = allocate<float>(rdims);
+  float *x_dev;
+  float *y_dev;
+  generateData(x, y, xdims[1], xdims[0], conv1dims[1], xdims[2], xdims[3]);
+
+  // Generate model
+  float *conv1 = allocate<float>(conv1dims);
+  float *conv2 = allocate<float>(conv2dims);
+  float *fc1   = allocate<float>(fc1dims);
+  float *fc2   = allocate<float>(fc2dims);
+  float *conv1_dev;  // updated weights from GPU computation
+  float *conv1_host; // mem-copied weights from GPU computation for solution check
+  generateConvFilters(conv1, conv2, fc1, fc2, xdims[1], conv1dims[1], xdims[2], xdims[3]);
+
+  int *out = zeros<int>(FLAGS_batch_size);
+
+  // Allocate device variables
+  // ----------------------------------------
+  if (mode != CPU) {
+    printf("Allocating GPU memory.");
+
+    cudaMalloc((void **) &x_dev, flattened_length(xdims) * sizeof(float));
+    cudaMalloc((void **) &conv1_dev, flattened_length(conv1dims) * sizeof(float));
+    cudaMalloc((void **) &conv1_host, flattened_length(conv1dims) * sizeof(float));
+    // cudaMalloc((void **)&y_dev, ydims[0] * ydims[1] * ydims[2] * ydims[3] * sizeof(float));
   }
 
-  // Backward operation for the CNN, a combination of conv layer + average pooling + relu
-  void backward_operation(float *x, float *conv1, float *conv2, float *fc1, float *fc2, float *y, const float *y_orig) {
-    // conv layer
-    const int dydims[] = {xdims[0], (xdims[1] - conv1dims[0] + 1), (xdims[2] - conv1dims[1] + 1), conv1dims[3]};
-    auto dy            = zeros<float>(dydims);
-    auto dw            = zeros<float>(dydims);
-    auto dx            = zeros<float>(dydims);
-    conv_backward_ygrad(y_orig, y, dy, dydims);
-    conv_backward_wgrad(x, xdims, conv1, conv1dims, ydims, dy, dw);
-    conv_backward_xgrad(x, xdims, conv1, conv1dims, ydims, dy, dx);
-    /*
-      /// relu layer
-      relu4(dw, dwdims);
-      relu4(dx, dxdims);
+  // Copy host variables to device
+  // ----------------------------------------
+  if (mode != CPU) {
+    printf("Copying input memory to the GPU.");
 
-      // average pooling
-      const int pool_size = 2;
-      const int bdims[]   = {adims[0], adims[1] / pool_size, adims[2] / pool_size,
-                           adims[3]};
-      auto b = zeros<float>(bdims);
-      average_pool(a, adims, pool_size, b, bdims);
+    cudaMalloc(x_dev, x, flattened_length(xdims) * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMalloc(conv1_dev, conv1, flattened_length(conv1dims) * sizeof(float), cudaMemcpyHostToDevice);
 
-      // matrix multiplication
-      const int fdims[] = {edims[0], fc2dims[1]};
-      auto f            = zeros<float>(fdims);
-      fully_backward(e, edims, fc2, fc2dims, f, fdims);
-
-      argmax(f, fdims, out);
-
-      delete[] a;
-      delete[] b;
-      delete[] f;
-    */
+    cudaMemset(conv1_host, 0, flattened_length(conv1dims) * sizeof(float));
   }
 
-  static void compare_solution(float *orig, float *comp) {
-  }
+  // Launch kernel
+  // ----------------------------------------
+  printf("Launching kernel ");
 
-  int main(int argc, char **argv) {
-    /*
-      if (argc != 3 && argc != 4) {
-        std::cerr << "\n"
-                  << "Sample usage: \n"
-                  << argv[0]
-                  << " [../data/test10.hdf5] [../data/model.hdf5] [10]\n";
-        return -1;
+  if (mode == CPU) {
+    printf("Performing CPU computation");
+
+    // get start time
+    const auto start = now();
+
+    forward_operation(x, conv1, conv2, fc1, fc2, out);
+    backward_operation(x, conv1, conv2, fc1, fc2, out, y_orig);
+
+    // get end time
+    const auto end = now();
+
+    // get elapsed time in milliseconds
+    const auto elapsed = std::chrono::duration<double, std::milli>(end - start).count();
+
+    // Get reference
+    int *ref = zeros<int>(FLAGS_batch_size);
+    argmax(y, rdims, ref);
+
+    // Calculate correctness
+    int num_correct = 0;
+    for (const auto i : range(0, FLAGS_batch_size)) {
+      if (out[i] == ref[i]) {
+        num_correct++;
       }
-      FLAGS_testdata = std::string(argv[1]);
-      FLAGS_model    = std::string(argv[2]);
-      } else if (argc == 4) {
-        FLAGS_batch_size = atoi(argv[3]);
-      }
-    */
-
-    enum Mode { CPU = 1, GPU_BASIC, GPU_MATRIX };
-    Mode mode = (Mode) 1;
-
-    // Initialize host variables
-    // ----------------------------------------------
-    xdims[0] = FLAGS_batch_size;
-    rdims[0] = FLAGS_batch_size;
-
-    // Generate data into x and y
-    printf("Creating memory on host");
-
-    float *x = allocate<float>(xdims);
-    float *y = allocate<float>(rdims);
-    float *x_dev;
-    float *y_dev;
-    generateData(x, y, xdims[1], xdims[0], conv1dims[1], xdims[2], xdims[3]);
-
-    // Generate model
-    float *conv1 = allocate<float>(conv1dims);
-    float *conv2 = allocate<float>(conv2dims);
-    float *fc1   = allocate<float>(fc1dims);
-    float *fc2   = allocate<float>(fc2dims);
-    float *conv1_dev;  // updated weights from GPU computation
-    float *conv1_host; // mem-copied weights from GPU computation for solution check
-    generateConvFilters(conv1, conv2, fc1, fc2, xdims[1], conv1dims[1], xdims[2], xdims[3]);
-
-    int *out = zeros<int>(FLAGS_batch_size);
-
-    // Allocate device variables
-    // ----------------------------------------
-    if (mode != CPU) {
-      printf("Allocating GPU memory.");
-
-      cudaMalloc((void **) &x_dev, xdims[0] * xdims[1] * xdims[2] * xdims[3] * sizeof(float));
-      cudaMalloc((void **) &conv1_dev, conv1dims[0] * conv1dims[1] * conv1dims[2] * conv1dims[3] * sizeof(float));
-      cudaMalloc((void **) &conv1_host, conv1dims[0] * conv1dims[1] * conv1dims[2] * conv1dims[3] * sizeof(float));
-      // cudaMalloc((void **)&y_dev, ydims[0] * ydims[1] * ydims[2] * ydims[3] * sizeof(float));
     }
-
-    // Copy host variables to device
-    // ----------------------------------------
-    if (mode != CPU) {
-      printf("Copying input memory to the GPU.");
-
-      cudaMalloc(x_dev, x, xdims[0] * xdims[1] * xdims[2] * xdims[3] * sizeof(float), cudaMemcpyHostToDevice);
-      cudaMalloc(conv1_dev, conv1, conv1dims[0] * conv1dims[1] * conv1dims[2] * conv1dims[3] * sizeof(float),
-                 cudaMemcpyHostToDevice);
-
-      cudaMemset(conv1_host, 0, conv1dims[0] * conv1dims[1] * conv1dims[2] * conv1dims[3] * sizeof(float));
-    }
-
-    // Launch kernel
-    // ----------------------------------------
-    printf("Launching kernel ");
-
-    if (mode == CPU) {
-      printf("Performing CPU computation");
-
-      // get start time
-      const auto start = now();
-
-      forward_operation(x, conv1, conv2, fc1, fc2, out);
-      backward_operation(x, conv1, conv2, fc1, fc2, out, y_orig);
-
-      // get end time
-      const auto end = now();
-
-      // get elapsed time in milliseconds
-      const auto elapsed = std::chrono::duration<double, std::milli>(end - start).count();
-
-      // Get reference
-      int *ref = zeros<int>(FLAGS_batch_size);
-      argmax(y, rdims, ref);
-
-      // Calculate correctness
-      int num_correct = 0;
-      for (const auto i : range(0, FLAGS_batch_size)) {
-        if (out[i] == ref[i]) {
-          num_correct++;
-        }
-      }
-      std::cout << "Done with " << FLAGS_batch_size << " queries in "
-                << "elapsed = " << elapsed
-                << " milliseconds. Correctness: " << static_cast<float>(num_correct) / FLAGS_batch_size << "\n";
-    } else if (mode == GPU_BASIC) {
-      printf("Performing GPU Basic forward propagation");
-      ConvForward(x, conv1, y, ydims[1], ydims[2], conv1dims[2], ydims[3]);
-      cudaDeviceSynchronize();
-    } else if (mode == GPU_MATRIX) {
-      printf("Performing GPU forward propagation with matrix multiplication");
-      // ConvForward(x, w, y, h, w, c, m);
-      cudaDeviceSynchronize();
-    } else {
-    }
-
-    // Copy device variables from host
-    // ----------------------------------------
-    printf("Copying output memory to the CPU");
-    cudaMemcpy(conv1_host, conv1_dev, conv1dims[0] * conv1dims[1] * conv1dims[2] * conv1dims[3] * sizeof(float),
-               cudaMemcpyDeviceToHost);
-
-    // Verify correctness
-    // ----------------------------------------
-    printf("Verifying results.");
-    compare_solution(conv1, conv1_dev);
-
-    // Free memory
-    // ----------------------------------------
-    delete[] x;
-    delete[] y;
-    delete[] conv1;
-    delete[] conv2;
-    delete[] fc1;
-    delete[] fc2;
-    delete[] out;
-    // delete[] ref;
-
-    // free();
-
-    if (mode != CPU) {
-      printf("Freeing GPU Memory");
-      cudaFree(x_dev);
-      cudaFree(conv1_dev);
-      cudaFree(y_dev);
-    }
-
-    return 0;
+    std::cout << "Done with " << FLAGS_batch_size << " queries in "
+              << "elapsed = " << elapsed
+              << " milliseconds. Correctness: " << static_cast<float>(num_correct) / FLAGS_batch_size << "\n";
+  } else if (mode == GPU_BASIC) {
+    printf("Performing GPU Basic forward propagation");
+    ConvForward(x, conv1, y, ydims[1], ydims[2], conv1dims[2], ydims[3]);
+    cudaDeviceSynchronize();
+  } else if (mode == GPU_MATRIX) {
+    printf("Performing GPU forward propagation with matrix multiplication");
+    // ConvForward(x, w, y, h, w, c, m);
+    cudaDeviceSynchronize();
+  } else {
   }
+
+  // Copy device variables from host
+  // ----------------------------------------
+  printf("Copying output memory to the CPU");
+  cudaMemcpy(conv1_host, conv1_dev, flattend_length(conv1dims) * sizeof(float), cudaMemcpyDeviceToHost);
+
+  // Verify correctness
+  // ----------------------------------------
+  printf("Verifying results.");
+  compare_solution(conv1, conv1_dev);
+
+  // Free memory
+  // ----------------------------------------
+  delete[] x;
+  delete[] y;
+  delete[] conv1;
+  delete[] conv2;
+  delete[] fc1;
+  delete[] fc2;
+  delete[] out;
+  // delete[] ref;
+
+  // free();
+
+  if (mode != CPU) {
+    printf("Freeing GPU Memory");
+    cudaFree(x_dev);
+    cudaFree(conv1_dev);
+    cudaFree(y_dev);
+  }
+
+  return 0;
+}
