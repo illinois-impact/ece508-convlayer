@@ -88,21 +88,21 @@ static T *allocate(const SzTy (&dims)[N]) {
 template <typename T, typename SzTy, size_t N>
 static T *zeros(const SzTy (&dims)[N]) {
   const auto len = flattened_length(dims);
-  T *res         = allocate<T, SzTy>(len);
+  auto res       = allocate<T, SzTy>(len);
   std::fill(res, res + len, static_cast<T>(0));
   return res;
 }
 
 template <typename T, typename SzTy>
-static enable_if_t<std::is_integral<SzTy>::value, T> **zeros(const SzTy len) {
-  T *res = allocate<T, SzTy>(len);
+static enable_if_t<std::is_integral<SzTy>::value, T *> zeros(const SzTy len) {
+  auto res = allocate<T, SzTy>(len);
   std::fill(res, res + len, static_cast<T>(0));
   return res;
 }
 
 template <typename T, typename ShapeT>
 static enable_if_t<std::is_same<ShapeT, shape>::value, T *> zeros(const ShapeT &shp) {
-  T *res = allocate<T, shape>(shp);
+  auto res = allocate<T, shape>(shp);
   std::fill(res, res + shp.flattened_length(), static_cast<T>(0));
   return res;
 }

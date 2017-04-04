@@ -22,8 +22,8 @@ static std::string FLAGS_testdata{};
 static std::string FLAGS_model{};
 
 // Data and reference data dimensions
-shape xdims        = {FLAGS_batch_size, NUM_CHANNELS, NUM_ROWS, NUM_COLS};
-static int rdims[] = {FLAGS_batch_size, NUM_DIGITS};
+shape xdims = {FLAGS_batch_size, NUM_CHANNELS, NUM_ROWS, NUM_COLS};
+shape rdims = {FLAGS_batch_size, NUM_DIGITS};
 
 shape conv1dims = {32, 1, 5, 5};
 shape conv2dims = {64, 32, 5, 5};
@@ -149,8 +149,11 @@ static void conv_backward_wgrad(const float *X, const shape xdims, const float *
                                 const float *dE_dY, float *dE_dW) {
   // const auto out_h = ydims[1] - filter_h + 1;
   // const auto out_w = ydims[2] - filter_w + 1;
+  const auto filter_h   = 0000; /// TODO:: This needs to filled in
+  const auto filter_w   = 0000;
+  const auto in_channel = 0000;
 
-  std::fill(dE_dW, dE_dW + (ydims[3] * filter_h * filter_w * in_channel), 0);
+  std::fill(dE_dW, dE_dW + (ydims.depth * filter_h * filter_w * in_channel), 0);
 
   for (const auto i : range(0, ydims.num)) {
     for (const auto m : range(0, ydims.depth)) {    // for each output feature map
@@ -178,7 +181,7 @@ static void conv_backward_wgrad(const float *X, const shape xdims, const float *
 static void conv_backward_xgrad(const float *X, const shape xdims, const float *W, const shape wdims, const float *Y,
                                 const shape ydims, const float *dE_dY, float *dE_dX) {
 
-  std::memset(dE_dX, 0, ydims.num * ydims.depth * ydims.height * wdims.depth);
+  std::fill(dE_dX, dE_dX + (ydims.num * ydims.depth * ydims.height * wdims.depth), 0);
 
   for (const auto i : range(0, ydims.num)) {
     for (const auto m : range(0, ydims.depth)) {    // for each output feature map
