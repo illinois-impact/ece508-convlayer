@@ -443,9 +443,10 @@ private:
   iter begin_;
 };
 
-template <typename T>
-DEVICE_CALLABLE range_proxy<T> range(T begin, T end) {
-  return {begin, end};
+template <typename T1, typename T2>
+DEVICE_CALLABLE range_proxy<typename std::common_type<T1, T1>::type> range(T1 begin, T2 end) {
+  using common_type = typename std::common_type<T1, T1>::type;
+  return {static_cast<common_type>(begin), static_cast<common_type>(end)};
 }
 
 template <typename T>

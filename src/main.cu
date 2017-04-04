@@ -21,20 +21,9 @@ static int FLAGS_batch_size = 10000;
 static std::string FLAGS_testdata{};
 static std::string FLAGS_model{};
 
-struct shape {
-  size_t num{0};        // number of images in mini-batch
-  size_t depth{0};      // number of input/output feature maps
-  size_t height{0};     // height of the image
-  size_t width{0};      // width of the image
-
-  shape(size_t num, size_t depth, size_t height, size_t width) : num(num), depth(depth),
-        height(height), width(width) {
-  } 
-};
-
 // Data and reference data dimensions
-shape xdims        = {FLAGS_batch_size, NUM_CHANNELS, NUM_ROWS, NUM_COLS};
-static int rdims[] = {FLAGS_batch_size, NUM_DIGITS};
+shape xdims = {FLAGS_batch_size, NUM_CHANNELS, NUM_ROWS, NUM_COLS};
+shape rdims = {FLAGS_batch_size, NUM_DIGITS};
 
 shape conv1dims = {32, 1, 5, 5};
 shape conv2dims = {64, 32, 5, 5};
@@ -63,7 +52,7 @@ static void generate_data(float *x, const shape &xdims) {
   std::mt19937 gen(rd());
   std::normal_distribution<> dis(mu, stddev);
 
-  std::generate(x, x + xdims->flattened_length(), dis(gen));
+  std::generate(x, x + xdims.flattened_length(), [&] { return dis(gen); });
 }
 
 // generate convolution filter
@@ -73,25 +62,23 @@ static void generate_convfilters(float *conv, const shape &convdim) {
             << convdim.width << "\n";
 
   // Set convolution filter values to 1
-  std::fill(conv, conv + convdim->flattened_length(), 1);
+  std::fill(conv, conv + convdim.flattened_length(), 1);
 }
 
 // Rectified linear unit 4d
-static void relu4(float *X, const shape xdims) {
-  for (const auto i : range(0, xdims.num * xdims.depth * xdims.height * xdims.width)) {
-    X[i] = (X[i] < 0) ? 0 : X[i];
-  }
+static void relu4(float *X, const shape &xdims) {
+  std::transform(X, X + xdims.flattened_length(), X, [](float val) { return std::min(0.0f, val); });
 }
 
 // Rectified linear unit 2d
-static void relu2(float *X, const shape xdims) {
+static void relu2(float *X, const shape &xdims) {
   for (const auto i : range(0, xdims.num * xdims.depth)) {
     X[i] = (X[i] < 0) ? 0 : X[i];
   }
 }
 
 // From book chapter Figure 16.5
-static void average_pool(const float *X, const shape xdims, const int pool_size, float *Y, const shape ydims) {
+static void average_pool(const float *X, const shape &xdims, const int pool_size, float *Y, const shape &ydims) {
   for (const auto i : range(0, ydims.num)) {
     for (const auto m : range(0, ydims.depth)) {
       for (const auto h : range(0, ydims.height)) {
@@ -131,7 +118,7 @@ static void argmax(const float *X, const shape xdims, int *Y) {
 // Sequential code for the forward path of the convolution layer
 static void conv_forward_valid(const float *X, const shape xdims, const float *W, const shape wdims, float *Y,
                                const shape ydims) {
-  std::memset(Y, 0, ydims.num * ydims.depth * ydims.height * ydims.width);
+  std::fill(Y, Y + ydims.flattened_length(), 0);
 
   for (const auto i : range(0, ydims.num)) {
     for (const auto m : range(0, ydims.depth)) {    // for each output feature map
@@ -184,7 +171,11 @@ static void conv_backward_ygrad(const float *Y_orig, const float *Y, const shape
 // backward propagation for dE/dW
 static void conv_backward_wgrad(const float *X, const shape xdims, const float *W, const shape wdims, const shape ydims,
                                 const float *dE_dY, float *dE_dW) {
-  std::memset(dE_dX, 0, ydims[3] * filter_h, filter_w, in_channel);
+  const auto filter_h   = 0000; /// TODO:: This needs to filled in
+  const auto filter_w   = 0000;
+  const auto in_channel = 0000;
+
+  std::fill(dE_dW, dE_dW + (ydims.depth * filter_h * filter_w * in_channel), 0);
 
   for (const auto i : range(0, ydims.num)) {
     for (const auto m : range(0, ydims.depth)) {    // for each output feature map
@@ -212,7 +203,7 @@ static void conv_backward_wgrad(const float *X, const shape xdims, const float *
 static void conv_backward_xgrad(const float *X, const shape xdims, const float *W, const shape wdims, const shape ydims, 
                                 const float *dE_dY, float *dE_dX) {
 
-  std::memset(dE_dX, 0, ydims.num * ydims.depth * ydims.height * wdims.depth);
+  std::fill(dE_dX, dE_dX + (ydims.num * ydims.depth * ydims.height * wdims.depth), 0);
 
   for (const auto i : range(0, ydims.num)) {
     for (const auto m : range(0, ydims.depth)) {    // for each output feature map
@@ -295,20 +286,22 @@ void forward_operation(float *x, float *conv1, float *conv2, float *fc1, float *
 
 // Leslie: under review
 // Backward operation for the CNN, a combination of conv layer + average pooling + relu
-void backward_operation(float *x, float *conv1, float *conv2, float *fc1, float *fc2, float *y, const float *y_orig) {
+void backward_operation(float *x, const shape xdims, float *conv1, const shape conv1dims, float *conv2, const shape conv2dims, 
+                        float *fc1, const shape fc1dims, float *fc2, const shape fc2dims, int *y, const float *y_orig) {
   // conv layer
-  const shape dydims = {xdims.num, conv1dims.depth, (xdims.height - conv1dims.height + 1), 
-                        (xdims.width - conv1dims.width + 1)};
-  auto dy = zeros<float>(dydims);
-  auto dw = zeros<float>(dydims);
-  auto dx = zeros<float>(dydims);
-  conv_backward_ygrad(y_orig, y, dy, dydims);
-  relu4(dy, dydims);
+  const shape ydims = {xdims.num, conv1dims.depth, (xdims.height - conv1dims.height + 1), (xdims.width - conv1dims.width + 1)};
+  auto dy = zeros<float>(ydims);
+  auto dw = zeros<float>(ydims);
+  auto dx = zeros<float>(ydims);
+/*
+  conv_backward_ygrad(y_orig, y, ydims, dy);
+  relu4(dy, ydims);
   conv_backward_wgrad(x, xdims, conv1, conv1dims, ydims, dy, dw);
   conv_backward_xgrad(x, xdims, conv1, conv1dims, ydims, dy, dx);
 
   /// relu layer
-  relu4(a, adims);
+  relu4(dw, conv1dims);
+  relu4(dx, xdims);
 
   // average pooling
   const int pool_size = 2;
@@ -354,22 +347,22 @@ void backward_operation(float *x, float *conv1, float *conv2, float *fc1, float 
   delete[] d;
   delete[] e;
   delete[] f;
+*/
 }
 
-static void compare_solution(float *cpu, float *gpu) {
-  if (cpu.size() != gpu.size()) {
+static void compare_solution(float *cpu, const int cpu_size, float *gpu, const int gpu_size) {
+  if (cpu_size != gpu_size) {
     printf("The dimensions does not match.");
-    return -1;
+    return;
   }
   // Element-wise comparison: only prints out the first error and halts
-  for (const auto i : range(0, cpu.size()) {
+  for (const auto i : range(0, cpu_size)) {
     if (cpu[i] != gpu[i]) {
       printf("Element ", i, "does not match");
-      return -1;
+      return;
     }
   }
   printf("All the elements match!");
-  return 0;
 }
 
 int main(int argc, char **argv) {
@@ -378,16 +371,17 @@ int main(int argc, char **argv) {
   float *x = allocate<float>(xdims);
   float *y = allocate<float>(rdims);
   generate_data(x, xdims);
+  generate_data(y, rdims);
 
   // Generate model
   float *conv1 = allocate<float>(conv1dims);
   float *conv2 = allocate<float>(conv2dims);
   float *fc1   = allocate<float>(fc1dims);
   float *fc2   = allocate<float>(fc2dims);
-  generate_convfilters(conv1, conv1dim);
-  generate_convfilters(conv2, conv2dim);
-  generate_convfilters(fc1, fc1dim);
-  generate_convfilters(fc2, fc2dim);
+  generate_convfilters(conv1, conv1dims);
+  generate_convfilters(conv2, conv2dims);
+  generate_convfilters(fc1, fc1dims);
+  generate_convfilters(fc2, fc2dims);
 
   int *out = zeros<int>(FLAGS_batch_size);
 
@@ -402,7 +396,7 @@ int main(int argc, char **argv) {
   const auto start = now();
 
   forward_operation(x, conv1, conv2, fc1, fc2, out);
-  backward_operation(x, conv1, conv2, fc1, fc2, out, y_orig);
+  backward_operation(x, xdims, conv1, conv1dims, conv2, conv2dims, fc1, fc1dims, fc2, fc2dims, out, y);
 
   // get end time
   const auto end = now();
@@ -415,8 +409,7 @@ int main(int argc, char **argv) {
   argmax(y, rdims, ref);
 
   std::cout << "Done with " << FLAGS_batch_size << " queries in "
-            << "elapsed = " << elapsed
-            << " milliseconds. Correctness: " << static_cast<float>(num_correct) / FLAGS_batch_size << "\n";
+            << "elapsed = " << elapsed << " milliseconds\n";
 
   // Verify correctness
   // ----------------------------------------
