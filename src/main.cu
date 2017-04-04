@@ -53,7 +53,9 @@ static void generate_data(float *x, const shape &xdims) {
   std::mt19937 gen(rd());
   std::normal_distribution<> dis(mu, stddev);
 
-  std::generate(x, x + xdims->flattened_length(), dis(gen));
+  std::generate(x, x + xdims.flattened_length(), [&] {
+    return dis(gen);
+  });
 }
 
 // generate convolution filter
@@ -63,25 +65,25 @@ static void generate_convfilters(float *conv, const shape &convdim) {
             << convdim.width << "\n";
 
   // Set convolution filter values to 1
-  std::fill(conv, conv + convdim->flattened_length(), 1);
+  std::fill(conv, conv + convdim.flattened_length(), 1);
 }
 
 // Rectified linear unit 4d
-static void relu4(float *X, const shape xdims) {
-  for (const auto i : range(0, xdims.num * xdims.depth * xdims.height * xdims.width)) {
-    X[i] = (X[i] < 0) ? 0 : X[i];
-  }
+static void relu4(float *X, const shape &xdims) {
+  std::transform(X, X + xdims.flattened_length(), X, [](float val) {
+    return std::min(0.0f, val);
+  });
 }
 
 // Rectified linear unit 2d
-static void relu2(float *X, const shape xdims) {
+static void relu2(float *X, const shape &xdims) {
   for (const auto i : range(0, xdims.num * xdims.depth)) {
     X[i] = (X[i] < 0) ? 0 : X[i];
   }
 }
 
 // From book chapter Figure 16.5
-static void average_pool(const float *X, const shape xdims, const int pool_size, float *Y, const shape ydims) {
+static void average_pool(const float *X, const shape &xdims, const int pool_size, float *Y, const shape &ydims) {
   for (const auto i : range(0, ydims.num)) {
     for (const auto m : range(0, ydims.depth)) {
       for (const auto h : range(0, ydims.height)) {
@@ -106,7 +108,7 @@ static void average_pool(const float *X, const shape xdims, const int pool_size,
 static void conv_forward_valid(const float *X, const shape xdims, const float *W, const shape wdims, float *Y,
                                const shape ydims) {
 
-  std::memset(Y, 0, ydims.num * ydims.depth * ydims.height * ydims.width);
+  std::fill(Y, Y + ydims.flattened_length(), 0);
 
   for (const auto i : range(0, ydims.num)) {
     for (const auto m : range(0, ydims.depth)) {    // for each output feature map
@@ -152,7 +154,7 @@ static void conv_backward_wgrad(const float *X, const shape xdims, const float *
   // const auto out_h = ydims[1] - filter_h + 1;
   // const auto out_w = ydims[2] - filter_w + 1;
 
-  std::memset(dE_dX, 0, ydims[3] * filter_h, filter_w, in_channel);
+  std::fill(dE_dW, dE_dW + (ydims[3] * filter_h * filter_w * in_channel), 0);
 
   for (const auto i : range(0, ydims.num)) {
     for (const auto m : range(0, ydims.depth)) {    // for each output feature map
@@ -357,7 +359,7 @@ static void compare_solution(float *cpu, float *gpu) {
     return -1;
   }
   // Element-wise comparison: only prints out the first error and halts
-  for (const auto i : range(0, cpu.size()) {
+  for (const auto i : range(0, cpu.size())) {
     if (cpu[i] != gpu[i]) {
       printf("Element ", i, "does not match");
       return -1;
