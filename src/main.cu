@@ -53,9 +53,7 @@ static void generate_data(float *x, const shape &xdims) {
   std::mt19937 gen(rd());
   std::normal_distribution<> dis(mu, stddev);
 
-  std::generate(x, x + xdims.flattened_length(), [&] {
-    return dis(gen);
-  });
+  std::generate(x, x + xdims.flattened_length(), [&] { return dis(gen); });
 }
 
 // generate convolution filter
@@ -70,9 +68,7 @@ static void generate_convfilters(float *conv, const shape &convdim) {
 
 // Rectified linear unit 4d
 static void relu4(float *X, const shape &xdims) {
-  std::transform(X, X + xdims.flattened_length(), X, [](float val) {
-    return std::min(0.0f, val);
-  });
+  std::transform(X, X + xdims.flattened_length(), X, [](float val) { return std::min(0.0f, val); });
 }
 
 // Rectified linear unit 2d
