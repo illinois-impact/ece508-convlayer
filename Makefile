@@ -1,28 +1,30 @@
-CUDA_HOME = /usr/local/cuda
-CUDA_LIB = $(CUDA_HOME)/lib
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+current_dir := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
 
-NVCC = nvcc
+CUDA_HOME = /usr/local/cuda
+CUDA_LIB = ${CUDA_HOME}/lib
+
+NVCC = ${CUDA_HOME}/bin/nvcc
 
 DEFINES=
-CFLAGS = ${DEFINES}
+CFLAGS = ${DEFINES} -I ${current_dir}/src
 
-LIBS=-lrt -lcr -lpthread -lm
-LIBS+=-std=c++11
+LIBS=-std=c++11
 
-CUDA_ARCH=-
-CUDA_LDFLAGS = -L$(CUDA_HOME)/lib64 -lcudart 
+CUDA_ARCH=-arch=sm_35
+CUDA_LDFLAGS=-L${CUDA_HOME}/lib64 -lcudart 
 
-TARGET = ece508-convlayer
-DATA = data/0
+SOURCES=src/main.cu
+TARGET=ece508-convlayer
+DATA=data/0
 
 ARGS = 
 
 .DEFAULT: cnn
 .PHONY: run memcheck
 
-cnn: template.cu
-	$(NVCC) ${CFLAGS} main.cu -o $@ -g -O0 -lwb -Xlinker='-Bsymbolic-functions -z relro' ${LIBS}
-	#$(NVCC) ${CFLAGS} template.cu -o $@ -g -O0 -I$(LIBWB_INC) -L$(LIBWB_LIB) -lwb -Xlinker='-Bsymbolic-functions -z relro' ${LIBS}
+$(TARGET): $(SOURCES)
+	$(NVCC) ${CFLAGS} $< -o $@ -g -O0 ${LIBS} ${CUDA_ARCH}
 
 run: cnn
 	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$(CUDA_LIB):$(LIBWB_LIB) ./$(TARGET) $(ARGS)
