@@ -1,38 +1,36 @@
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+current_dir := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
+
 CUDA_HOME = /usr/local/cuda
-CUDA_LIB = $(CUDA_HOME)/lib
-LIBWB_INC = ${HOME}/wbgo/src/wb/c-tools
-LIBWB_LIB = ${LIBWB_INC}/Linux-x86_64
+CUDA_LIB = ${CUDA_HOME}/lib
 
-#NVCC = /usr/local/cuda-8.0/vin/nvcc
-NVCC = nvcc
+NVCC = ${CUDA_HOME}/bin/nvcc
 
-DEFINES=-DWB_USE_CUDA -DWB_USE_MPI 
-DEFINES+=-DWB_USE_COURSERA -DWB_USE_CUSTOM_MALLOC 
-#DEFINES+=-w -arch -sm -l
-CFLAGS = ${DEFINES}
-CUDA_LDFLAGS = -L$(CUDA_HOME)/lib64 -lcudart 
-LIBS=-lrt -lcr -lpthread -lm
-LIBS+=-std=c++11
+DEFINES=
+CFLAGS = ${DEFINES} -I ${current_dir}/src
 
-DATA = data/0
+LIBS=-std=c++11
 
-ARGS = -i $(DATA)/mode.flag,$(DATA)/input_desc.raw -e $(DATA)/expected_out_md5.raw -t integral_vector
+CUDA_ARCH=-arch=sm_35
+CUDA_LDFLAGS=-L${CUDA_HOME}/lib64 -lcudart 
+
+SOURCES=src/main.cu
+TARGET=ece508-convlayer
+DATA=data/0
+
+ARGS = 
 
 .DEFAULT: cnn
-.PHONY: run memcheck debug
+.PHONY: run memcheck
 
-cnn: template.cu
-	$(NVCC) ${CFLAGS} main.cu -o $@ -g -O0 -lwb -Xlinker='-Bsymbolic-functions -z relro' ${LIBS}
-	#$(NVCC) ${CFLAGS} template.cu -o $@ -g -O0 -I$(LIBWB_INC) -L$(LIBWB_LIB) -lwb -Xlinker='-Bsymbolic-functions -z relro' ${LIBS}
+$(TARGET): $(SOURCES)
+	$(NVCC) ${CFLAGS} $< -o $@ -g -O0 ${LIBS} ${CUDA_ARCH}
 
 run: cnn
-	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$(CUDA_LIB):$(LIBWB_LIB) mpirun -np 5 ./cnn $(ARGS)
+	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$(CUDA_LIB):$(LIBWB_LIB) ./$(TARGET) $(ARGS)
 
 memcheck: cnn
-	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$(CUDA_LIB):$(LIBWB_LIB) mpirun -np 5 $(CUDA_HOME)/bin/cuda-memcheck ./cnn $(ARGS)
-
-debug: cnn
-	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$(CUDA_LIB):$(LIBWB_LIB) mpirun -np 5 xterm -e gdb -ex 'show environment MV2_COMM_WORLD_RANK' -ex r --args ./cnn $(ARGS)
+	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$(CUDA_LIB):$(LIBWB_LIB) $(CUDA_HOME)/bin/cuda-memcheck ./$(TARGET) $(ARGS)
 
 clean:
-	rm -rf *.o cnn
+	rm -rf *.o $(TARGET)
