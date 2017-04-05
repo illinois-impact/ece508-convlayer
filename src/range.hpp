@@ -444,8 +444,8 @@ private:
 };
 
 template <typename T1, typename T2>
-DEVICE_CALLABLE range_proxy<typename std::common_type<T1, T1>::type> range(T1 begin, T2 end) {
-  using common_type = typename std::common_type<T1, T1>::type;
+DEVICE_CALLABLE range_proxy<typename std::common_type<T1, T2>::type> range(T1 begin, T2 end) {
+  using common_type = typename std::common_type<T1, T2>::type;
   return {static_cast<common_type>(begin), static_cast<common_type>(end)};
 }
 
