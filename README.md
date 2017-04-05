@@ -14,18 +14,22 @@ Textbook chapters 16.3 and 16.4 provide a basic CUDA implementation of forward p
 
 ## Dataset Information
 
-There is one dataset assigned in this lab. We will use random function to generate the input data images, hence, all the test datasets between students and between each runs will be unique. Therefore, it is important to make sure that the output values match the results from the sequential code.
+There is one dataset assigned in this lab. We will use random function to generate the input data images, hence, all the input test datasets between students and between each runs will be unique. Therefore, it is important to make sure that the output values match the results from the sequential code. For computation simplicity, convolution filter weights are all set to 1.
 
-* Input Dataset `N x C x H x W = 10000 x 1 x 28 x 28`
-* Filter `M x C x K x K =  32 x 1 x 5 x 5`
+* Input Dataset `N x C x H x W = 10000 x 1 x 28 x 28`: all random variables
+* Filter `M x C x K x K =  32 x 1 x 5 x 5`: all 1's
 
 ## Instructions
 
-In the provided sequential source code, you will find a function named `forward_operation`. This function implements sequential forward path of the convolution layer. You don't have to modify this code, just call this function when verifying your output of GPU implementation. The functions `conv_backward_wgrad` and `conv_backward_dgrad` in the code implement backward propagation of the convolution layer and compute error gradient in terms of weights and inputs respectively to update the weight values for next iteration in the training process.
+In the provided sequential source code, you will find a function named `forward_operation`. This function implements sequential forward path of the convolution layer. In forward propagation, there are 6 steps: convolution layer 1, sub-sampling (or pooling), convolution layer 2, sub-sampling, fully connected layer 1, and fully connected layer 2 in order.
 
-You have to implement the host code to call GPU kernels, GPU kernel functions and CUDA memory management. Although your correctness and performance will be evaluated based on the default dataset we have provided, feel free to adjust the sizes and values to test your implementation and experiment with various approaches.
+The function `backward_operation` implements backward propagation of the convolutional neural network. The functions `conv_backward_wgrad` and `conv_backward_xgrad` in the code compute error gradients in terms of the weights and inputs respectively. These values will be propagated along the path and used to update the filter weight values for next iteration in the training process. However, in this lab, we are only focusing on single iteration, single convolution layer for back-propagation. We compute the error gradient values on convolution layer 1 from forward propagation with randomly generated dE/dY. You don't have to modify these functions, but to call the function when executing and verifying your output of GPU implementation.
 
-Once you have finished with CUDA implementation, you will be using the function `compare_solution` to verify your solution with the results from the sequential code. You will check the output feature maps, Y, after the forward propagation, and error gradient based on weights and input data, dE/dW, dE/dX, after the backward propagation.
+![image](/imgs/cnn_path.jpg "thumbnail")
+
+You have to implement the host code to call GPU kernels, GPU kernel functions and CUDA memory management. Once you have finished with CUDA implementation, you will be using the function `compare_solution` to verify your solution with the results from the sequential code. You will check the output feature maps, Y (or out), after the forward propagation, and error gradient based on weights and input data, dE/dW, dE/dX, after the backward propagation.
+
+Although your correctness and performance will be evaluated based on the default dataset we have provided, feel free to adjust the sizes and values to test your implementation and experiment with various approaches.
 
 ## Submissions
 
