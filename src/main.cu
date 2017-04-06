@@ -17,7 +17,7 @@
 #define NUM_DIGITS 10
 #define TILE_WIDTH 4
 
-static size_t FLAGS_batch_size = 10000;
+static size_t FLAGS_batch_size = 100;
 static std::string FLAGS_testdata{};
 static std::string FLAGS_model{};
 
@@ -46,13 +46,11 @@ static void generate_data(float *x, const shape &xdims) {
   std::cout << "generating tensor with input dimensions = " << xdims.num << " x " << xdims.depth << " x "
             << xdims.height << " x " << xdims.width << "\n";
 
-  const float mu{0};     // mean
-  const float stddev{1}; // standard deviation
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::normal_distribution<> dis(mu, stddev);
+  const auto rng_state = rng_new_state(0);
 
-  std::generate(x, x + xdims.flattened_length(), [&] { return dis(gen); });
+  for (const auto ii : range(0, xdims.flattened_length())) {
+    x[ii] = rng_float(rng_state);
+  }
 }
 
 // generate convolution filter
@@ -67,7 +65,7 @@ static void generate_convfilters(float *conv, const shape &convdim) {
 
 // Rectified linear unit 4d
 static void relu4(float *X, const shape &xdims) {
-  for (const auto i : range(0, xdims.num * xdims.depth * xdims.height * xdims.width)) {
+  for (const auto i : range(0, xdims.flattened_length())) {
     X[i] = (X[i] < 0) ? 0 : X[i];
   }
 }
@@ -85,9 +83,9 @@ static void average_pool(const float *X, const shape &xdims, const int pool_size
     for (const auto m : range(0, ydims.depth)) {
       for (const auto h : range(0, ydims.height)) {
         for (const auto w : range(0, ydims.width)) {
+          const auto yoffset = ((i * ydims.depth + h) * ydims.height + w) * ydims.width + m;
           for (const auto p : range(0, pool_size)) {
             for (const auto q : range(0, pool_size)) {
-              const auto yoffset = ((i * ydims.depth + h) * ydims.height + w) * ydims.width + m;
               const auto xoffset = i * xdims.depth * xdims.height * xdims.width +
                                    (pool_size * h + p) * xdims.height * xdims.width +
                                    (pool_size * w + q) * xdims.width + m;
@@ -133,10 +131,10 @@ static void conv_forward_valid(const float *X, const shape &xdims, const float *
     for (const auto m : range(0, ydims.depth)) {    // for each output feature map
       for (const auto h : range(0, ydims.height)) { // for each output element
         for (const auto w : range(0, ydims.width)) {
+          const auto yoffset = ((i * ydims.depth + h) * ydims.height + w) * ydims.width + m;
           for (const auto c : range(0, xdims.depth)) {     // sum over all input feature maps
             for (const auto p : range(0, wdims.height)) {  // filter height
               for (const auto q : range(0, wdims.width)) { // filter width
-                const auto yoffset = ((i * ydims.depth + h) * ydims.height + w) * ydims.width + m;
                 const auto xoffset = ((((i * xdims.depth) + (h + p)) * xdims.height) + (w + q)) * xdims.width + c;
                 const auto woffset = ((((p * wdims.width) + q) * wdims.depth) + c) * wdims.num + m;
                 Y[yoffset] += X[xoffset] * W[woffset];
@@ -359,7 +357,10 @@ int main(int argc, char **argv) {
   // get start time
   const auto start = now();
 
+  std::cout << "performing foward operation\n";
   forward_operation(x, conv1, conv2, fc1, fc2, out);
+
+  std::cout << "performing backward operation\n";
   backward_operation(x, xdims, conv1, conv1dims, y1, dedy, dedw, dedx);
 
   // get end time
