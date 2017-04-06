@@ -179,10 +179,10 @@ static void conv_backward_wgrad(const float *X, const shape &xdims, const float 
   std::fill(dE_dW, dE_dW + (ydims.depth * wdims.height * wdims.width * wdims.depth), 0);
 
   for (const auto i : range(0, ydims.num)) {
-    for (const auto m : range(0, ydims.depth)) {      // for each output feature map
-      for (const auto c : range(0, wdims.depth)) {    // sum over all input feature maps
-        for (const auto h : range(0, ydims.height)) { // for each output element
-          for (const auto w : range(0, ydims.width)) {
+    for (const auto m : range(0, ydims.depth)) {    // for each output feature map
+      for (const auto h : range(0, ydims.height)) { // for each output element
+        for (const auto w : range(0, ydims.width)) {
+          for (const auto c : range(0, wdims.depth)) {    // sum over all input feature maps
             for (const auto p : range(0, wdims.height)) {  // filter height
               for (const auto q : range(0, wdims.width)) { // filter width
                 const auto yoffset = ((i * ydims.height + h) * ydims.width + w) * ydims.depth + m;
@@ -206,9 +206,9 @@ static void conv_backward_xgrad(const float *X, const shape &xdims, const float 
 
   for (const auto i : range(0, ydims.num)) {
     for (const auto m : range(0, ydims.depth)) {      // for each output feature map
-      for (const auto c : range(0, xdims.depth)) {    // sum over all input feature maps
-        for (const auto h : range(0, ydims.height)) { // for each output element
-          for (const auto w : range(0, ydims.width)) {
+      for (const auto h : range(0, ydims.height)) { // for each output element
+        for (const auto w : range(0, ydims.width)) {
+          for (const auto c : range(0, xdims.depth)) {    // sum over all input feature maps
             for (const auto p : range(0, wdims.height)) {  // filter height
               for (const auto q : range(0, wdims.width)) { // filter width
                 const auto yoffset = ((i * ydims.height + h) * ydims.width + w) * ydims.depth + m;
