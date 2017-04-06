@@ -28,6 +28,7 @@ CMakeLists.txt.user.*
 *.sublime-project
 *.sublime-workspace
 .idea
+.vscode
 
 # Local config windows
 _configure.bat
