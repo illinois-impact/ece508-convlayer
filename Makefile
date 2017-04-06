@@ -24,7 +24,7 @@ ARGS =
 .PHONY: run memcheck
 
 $(TARGET): $(SOURCES)
-	$(NVCC) ${CFLAGS} $< -o $@ -g -O0 ${LIBS} ${CUDA_ARCH}
+	$(NVCC) ${CFLAGS} $< -o $@ -O3 ${LIBS} ${CUDA_ARCH}
 
 
 memcheck: $(TARGET)

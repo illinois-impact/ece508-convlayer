@@ -17,7 +17,7 @@
 #define NUM_DIGITS 10
 #define TILE_WIDTH 4
 
-static size_t FLAGS_batch_size = 100;
+static size_t FLAGS_batch_size = 1000;
 static std::string FLAGS_testdata{};
 static std::string FLAGS_model{};
 
