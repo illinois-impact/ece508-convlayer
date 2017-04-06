@@ -357,7 +357,7 @@ int main(int argc, char **argv) {
   // get start time
   const auto start = now();
 
-  std::cout << "performing foward operation\n";
+  std::cout << "performing forward operation\n";
   forward_operation(x, conv1, conv2, fc1, fc2, out);
 
   std::cout << "performing backward operation\n";
