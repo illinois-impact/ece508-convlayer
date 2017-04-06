@@ -20,8 +20,8 @@ DATA=data/0
 
 ARGS = 
 
-.DEFAULT: cnn
-.PHONY: run memcheck
+.DEFAULT: $(TARGET)
+.PHONY: memcheck
 
 $(TARGET): $(SOURCES)
 	$(NVCC) ${CFLAGS} $< -o $@ -O3 ${LIBS} ${CUDA_ARCH}
