@@ -11,5 +11,6 @@ resources:
 commands:
   build:
     - echo "Building project"
-    - make
+    - make -C /src
+    - ls -l
     - ./ece508-convlayer

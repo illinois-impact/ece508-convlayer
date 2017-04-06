@@ -15,7 +15,7 @@ CUDA_ARCH=-arch=sm_35
 CUDA_LDFLAGS=-L${CUDA_HOME}/lib64 -lcudart 
 
 SOURCES=src/main.cu
-TARGET=ece508-convlayer
+TARGET=/build/ece508-convlayer
 DATA=data/0
 
 ARGS = 
@@ -26,11 +26,9 @@ ARGS =
 $(TARGET): $(SOURCES)
 	$(NVCC) ${CFLAGS} $< -o $@ -g -O0 ${LIBS} ${CUDA_ARCH}
 
-run: cnn
-	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$(CUDA_LIB):$(LIBWB_LIB) ./$(TARGET) $(ARGS)
 
-memcheck: cnn
-	LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$(CUDA_LIB):$(LIBWB_LIB) $(CUDA_HOME)/bin/cuda-memcheck ./$(TARGET) $(ARGS)
+memcheck: $(TARGET)
+	$(CUDA_HOME)/bin/cuda-memcheck $< $(ARGS)
 
 clean:
 	rm -rf *.o $(TARGET)

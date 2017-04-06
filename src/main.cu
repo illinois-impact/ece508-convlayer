@@ -17,7 +17,7 @@
 #define NUM_DIGITS 10
 #define TILE_WIDTH 4
 
-static int FLAGS_batch_size = 10000;
+static size_t FLAGS_batch_size = 10000;
 static std::string FLAGS_testdata{};
 static std::string FLAGS_model{};
 
@@ -116,8 +116,7 @@ static void argmax(const float *X, const shape &xdims, int *Y) {
   }
 }
 
-static void print_array(float *data, const int data_size)
-{
+static void print_array(float *data, const int data_size) {
   std::cout << "Printing array\n";
   for (const auto i : range(0, data_size))
     std::cout << data[i] << " ";
@@ -134,9 +133,9 @@ static void conv_forward_valid(const float *X, const shape &xdims, const float *
     for (const auto m : range(0, ydims.depth)) {    // for each output feature map
       for (const auto h : range(0, ydims.height)) { // for each output element
         for (const auto w : range(0, ydims.width)) {
-          for (const auto c : range(0, xdims.depth)) { // sum over all input feature maps
-            for (const auto p : range(0, wdims.height)) {    // filter height
-              for (const auto q : range(0, wdims.width)) {   // filter width
+          for (const auto c : range(0, xdims.depth)) {     // sum over all input feature maps
+            for (const auto p : range(0, wdims.height)) {  // filter height
+              for (const auto q : range(0, wdims.width)) { // filter width
                 const auto yoffset = ((i * ydims.depth + h) * ydims.height + w) * ydims.width + m;
                 const auto xoffset = ((((i * xdims.depth) + (h + p)) * xdims.height) + (w + q)) * xdims.width + c;
                 const auto woffset = ((((p * wdims.width) + q) * wdims.depth) + c) * wdims.num + m;
@@ -177,17 +176,17 @@ static void conv_backward_ygrad(const float *Y_orig, const float *Y, const shape
 }
 
 // backward propagation for dE/dW
-static void conv_backward_wgrad(const float *X, const shape &xdims, const float *W, const shape &wdims, const shape &ydims,
-                                const float *dE_dY, float *dE_dW) {
+static void conv_backward_wgrad(const float *X, const shape &xdims, const float *W, const shape &wdims,
+                                const shape &ydims, const float *dE_dY, float *dE_dW) {
   std::fill(dE_dW, dE_dW + (ydims.depth * wdims.height * wdims.width * wdims.depth), 0);
 
   for (const auto i : range(0, ydims.num)) {
-    for (const auto m : range(0, ydims.depth)) {    // for each output feature map
-      for (const auto c : range(0, wdims.depth)) { // sum over all input feature maps
+    for (const auto m : range(0, ydims.depth)) {      // for each output feature map
+      for (const auto c : range(0, wdims.depth)) {    // sum over all input feature maps
         for (const auto h : range(0, ydims.height)) { // for each output element
           for (const auto w : range(0, ydims.width)) {
-            for (const auto p : range(0, wdims.height)) {    // filter height
-              for (const auto q : range(0, wdims.width)) {   // filter width
+            for (const auto p : range(0, wdims.height)) {  // filter height
+              for (const auto q : range(0, wdims.width)) { // filter width
                 const auto yoffset = ((i * ydims.height + h) * ydims.width + w) * ydims.depth + m;
                 const auto xoffset = ((((i * xdims.height) + (h + p)) * xdims.width) + (w + q)) * xdims.depth + c;
                 const auto woffset = ((((p * wdims.width) + q) * wdims.depth) + c) * wdims.num + m;
@@ -202,18 +201,18 @@ static void conv_backward_wgrad(const float *X, const shape &xdims, const float 
 }
 
 // backward propagation for dE/dX
-static void conv_backward_xgrad(const float *X, const shape &xdims, const float *W, const shape &wdims, const shape &ydims, 
-                                const float *dE_dY, float *dE_dX) {
+static void conv_backward_xgrad(const float *X, const shape &xdims, const float *W, const shape &wdims,
+                                const shape &ydims, const float *dE_dY, float *dE_dX) {
 
   std::fill(dE_dX, dE_dX + (ydims.num * ydims.depth * ydims.height * wdims.depth), 0);
 
   for (const auto i : range(0, ydims.num)) {
-    for (const auto m : range(0, ydims.depth)) {    // for each output feature map
-      for (const auto c : range(0, xdims.depth)) { // sum over all input feature maps
+    for (const auto m : range(0, ydims.depth)) {      // for each output feature map
+      for (const auto c : range(0, xdims.depth)) {    // sum over all input feature maps
         for (const auto h : range(0, ydims.height)) { // for each output element
           for (const auto w : range(0, ydims.width)) {
-            for (const auto p : range(0, wdims.height)) {    // filter height
-              for (const auto q : range(0, wdims.width)) {   // filter width
+            for (const auto p : range(0, wdims.height)) {  // filter height
+              for (const auto q : range(0, wdims.width)) { // filter width
                 const auto yoffset = ((i * ydims.height + h) * ydims.width + w) * ydims.depth + m;
                 const auto xoffset = ((((i * xdims.height) + (h + p)) * xdims.width) + (w + q)) * xdims.depth + c;
                 const auto woffset = ((((p * wdims.width) + q) * wdims.depth) + c) * wdims.num + m;
@@ -232,7 +231,7 @@ void forward_operation(float *x, float *conv1, float *conv2, float *fc1, float *
   // conv1 layer
   const shape adims = {xdims.num, conv1dims.num, (xdims.height - conv1dims.height + 1),
                        (xdims.width - conv1dims.width + 1)};
-  auto a = zeros<float>(adims);
+  auto a            = zeros<float>(adims);
   conv_forward_valid(x, xdims, conv1, conv1dims, a, adims);
 
   // relu layer
@@ -240,14 +239,14 @@ void forward_operation(float *x, float *conv1, float *conv2, float *fc1, float *
 
   // sub-sampling: average pooling
   const int pool_size = 2;
-  const shape bdims = {adims.num, adims.depth, adims.height / pool_size, adims.width / pool_size};
-  auto b = zeros<float>(bdims);
+  const shape bdims   = {adims.num, adims.depth, adims.height / pool_size, adims.width / pool_size};
+  auto b              = zeros<float>(bdims);
   average_pool(a, adims, pool_size, b, bdims);
 
   // conv2 layer
   const shape cdims = {bdims.num, conv2dims.num, (bdims.height - conv2dims.height + 1),
                        (bdims.width - conv2dims.width + 1)};
-  auto c = zeros<float>(cdims);
+  auto c            = zeros<float>(cdims);
   conv_forward_valid(b, bdims, conv2, conv2dims, c, cdims);
 
   // relu
@@ -255,7 +254,7 @@ void forward_operation(float *x, float *conv1, float *conv2, float *fc1, float *
 
   // sub-sampling: average pooling
   const shape ddims = {cdims.num, cdims.depth, cdims.height / pool_size, cdims.width / pool_size};
-  auto d = zeros<float>(ddims);
+  auto d            = zeros<float>(ddims);
   average_pool(c, cdims, pool_size, d, ddims);
 
   // reshape
@@ -263,7 +262,7 @@ void forward_operation(float *x, float *conv1, float *conv2, float *fc1, float *
 
   // fully connected layer 1: matrix multiplication
   const shape edims = {ddims.num, fc1dims.depth};
-  auto e = zeros<float>(edims);
+  auto e            = zeros<float>(edims);
   fully_forward(d, ddims2, fc1, fc1dims, e, edims);
 
   // relu
@@ -271,7 +270,7 @@ void forward_operation(float *x, float *conv1, float *conv2, float *fc1, float *
 
   // fully connected layer 2: matrix multiplication
   const shape fdims = {edims.num, fc2dims.depth};
-  auto f = zeros<float>(fdims);
+  auto f            = zeros<float>(fdims);
   fully_forward(e, edims, fc2, fc2dims, f, fdims);
 
   argmax(f, fdims, out);
@@ -285,12 +284,12 @@ void forward_operation(float *x, float *conv1, float *conv2, float *fc1, float *
 }
 
 // Backward operation for the CNN, a combination of conv layer + average pooling + relu
-void backward_operation(float *x, const shape &xdims, float *conv1, const shape &conv1dims, 
-                        const float *y1, float *dedy, float *dedw, float *dedx) {
+void backward_operation(float *x, const shape &xdims, float *conv1, const shape &conv1dims, const float *y1,
+                        float *dedy, float *dedw, float *dedx) {
   // pre-processing: 1 convolution layer forward propagation
   const shape ydims = {xdims.num, conv1dims.num, (xdims.height - conv1dims.height + 1),
                        (xdims.width - conv1dims.width + 1)};
-  auto y = zeros<float>(ydims);
+  auto y            = zeros<float>(ydims);
   conv_forward_valid(x, xdims, conv1, conv1dims, y, ydims);
 
   // relu layer
@@ -340,8 +339,9 @@ int main(int argc, char **argv) {
   generate_convfilters(fc2, fc2dims);
 
   // generate output feature map for verification
-  const shape y1dims = {xdims.num, conv1dims.num, (xdims.height - conv1dims.height + 1), (xdims.width - conv1dims.width + 1)};
-  float *y1 = allocate<float>(y1dims);
+  const shape y1dims = {xdims.num, conv1dims.num, (xdims.height - conv1dims.height + 1),
+                        (xdims.width - conv1dims.width + 1)};
+  float *y1          = allocate<float>(y1dims);
   generate_data(y1, y1dims);
   int *out = zeros<int>(FLAGS_batch_size);
 
