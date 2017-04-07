@@ -2,6 +2,7 @@
 #define __UTILS_HPP__
 
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cuda.h>
 #include <type_traits>
@@ -139,7 +140,11 @@ static uint_fast32_t *rng_new_state() {
 
 static float rng_float(uint_fast32_t *state) {
   uint_fast32_t rnd = rng_uint32(state);
-  return static_cast<float>(rnd) / static_cast<float>(UINT_FAST32_MAX);
+  const auto r      = static_cast<float>(rnd) / static_cast<float>(UINT_FAST32_MAX);
+  if (std::isfinite(r)) {
+    return r;
+  }
+  return rng_float(state);
 }
 
 #endif // __UTILS_HPP__
