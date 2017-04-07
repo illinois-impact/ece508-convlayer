@@ -17,7 +17,7 @@
 #define NUM_DIGITS 10
 #define TILE_WIDTH 4
 
-static size_t FLAGS_batch_size = 100;
+static size_t FLAGS_batch_size = 1000;
 static std::string FLAGS_testdata{};
 static std::string FLAGS_model{};
 
@@ -79,6 +79,7 @@ static void relu2(float *X, const shape &xdims) {
 
 // From book chapter Figure 16.5
 static void average_pool(const float *X, const shape &xdims, const int pool_size, float *Y, const shape &ydims) {
+  const auto scale = 1.0f / static_cast<float>(pool_size * pool_size);
   for (const auto i : range(0, ydims.num)) {
     for (const auto m : range(0, ydims.depth)) {
       for (const auto h : range(0, ydims.height)) {
@@ -89,7 +90,7 @@ static void average_pool(const float *X, const shape &xdims, const int pool_size
               const auto xoffset = i * xdims.depth * xdims.height * xdims.width +
                                    (pool_size * h + p) * xdims.height * xdims.width +
                                    (pool_size * w + q) * xdims.width + m;
-              Y[yoffset] += X[xoffset] / (1.0f * pool_size * pool_size);
+              Y[yoffset] += X[xoffset] * scale;
             }
           }
         }
@@ -114,10 +115,11 @@ static void argmax(const float *X, const shape &xdims, int *Y) {
   }
 }
 
-static void print_array(float *data, const int data_size) {
+static void print_array(const float *data, const shape &dim) {
   std::cout << "Printing array\n";
-  for (const auto i : range(0, data_size))
+  for (const auto i : range(0, dim.flattened_length())) {
     std::cout << data[i] << " ";
+  }
   std::cout << std::endl;
 }
 
