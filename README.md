@@ -16,7 +16,7 @@ Textbook chapters 16.3 and 16.4 provide a basic CUDA implementation of forward p
 
 There is one dataset assigned in this lab. We will use random function to generate the input data images, hence, all the input test datasets between students and between each runs will be unique. Therefore, it is important to make sure that the output values match the results from the sequential code. For computation simplicity, convolution filter weights are all set to 1.
 
-* Input Dataset `N x C x H x W = 10000 x 1 x 28 x 28`: all random variables
+* Input Dataset `N x C x H x W = 100 x 1 x 28 x 28`: all random variables
 * Filter `M x C x K x K =  32 x 1 x 5 x 5`: all 1's
 
 ## Instructions
