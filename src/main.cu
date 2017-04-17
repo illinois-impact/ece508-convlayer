@@ -46,7 +46,7 @@ static void generate_data(float *x, const shape &xdims) {
   std::cout << "generating tensor with input dimensions = " << xdims.num << " x " << xdims.depth << " x "
             << xdims.height << " x " << xdims.width << "\n";
 
-  const auto rng_state = rng_new_state(0);
+  const auto rng_state = rng_new_state();
 
   for (const auto ii : range(0, xdims.flattened_length())) {
     x[ii] = rng_float(rng_state);
