@@ -11,7 +11,7 @@ CFLAGS = ${DEFINES} -I ${current_dir}/src
 
 LIBS=-std=c++11
 
-CUDA_ARCH=-arch=sm_35
+CUDA_ARCH=-arch=sm_35 -ccbin g++-4.9
 CUDA_LDFLAGS=-L${CUDA_HOME}/lib64 -lcudart 
 
 SOURCES=src/main.cu

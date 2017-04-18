@@ -10,7 +10,6 @@ resources:
   network: false
 commands:
   build:
-    - nvidia-smi
     - echo "Building project"
     - make -C /src
     - ./ece508-convlayer
