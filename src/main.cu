@@ -236,7 +236,7 @@ void forward_operation(float *x, float *conv1, float *conv2, float *fc1, float *
   auto a            = zeros<float>(adims);
   conv_forward_valid(x, xdims, conv1, conv1dims, a, adims);
 
-  print_array(a, adims);
+  //print_array(a, adims);
 
   // relu layer
   relu4(a, adims);
@@ -333,7 +333,7 @@ int main(int argc, char **argv) {
   float *y = allocate<float>(rdims);
   generate_data(x, xdims);
 
-  print_array(x, xdims);
+  //print_array(x, xdims);
 
   // Generate model
   float *conv1 = allocate<float>(conv1dims);
