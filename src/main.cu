@@ -17,7 +17,7 @@
 #define NUM_DIGITS 10
 #define TILE_WIDTH 4
 
-static size_t FLAGS_batch_size = 1000;
+static size_t FLAGS_batch_size = 10;
 static std::string FLAGS_testdata{};
 static std::string FLAGS_model{};
 
@@ -153,12 +153,12 @@ static void conv_forward_valid(const float *X, const shape &xdims, const float *
 
 void fully_forward(const float *X, const shape &xdims, float *W, const shape &wdims, float *Y, const shape &ydims) {
   for (const auto i : range(0, xdims.num)) {
-    for (const auto j : range(0, wdims.depth)) {
+    for (const auto j : range(0, wdims.num)) {
       float sum = 0;
       for (const auto k : range(0, xdims.depth)) {
-        sum += X[i * xdims.depth + k] * W[k * wdims.depth + j];
+        sum += X[i * xdims.depth + k] * W[k * wdims.num + j];
       }
-      Y[i * wdims.depth + j] = sum;
+      Y[i * wdims.num + j] = sum;
     }
   }
 }
