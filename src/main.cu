@@ -17,7 +17,7 @@
 #define NUM_DIGITS 10
 #define TILE_WIDTH 4
 
-static size_t FLAGS_batch_size = 10;
+static size_t FLAGS_batch_size = 1000;
 static std::string FLAGS_testdata{};
 static std::string FLAGS_model{};
 
@@ -395,7 +395,6 @@ int main(int argc, char **argv) {
   delete[] dedy;
   delete[] dedw;
   delete[] dedx;
-  // free();
 
   return 0;
 }
