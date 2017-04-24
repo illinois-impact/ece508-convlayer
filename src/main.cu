@@ -101,11 +101,11 @@ static void average_pool(const float *X, const shape &xdims, const int pool_size
 
 // Choose the guess with largest score
 static void argmax(const float *X, const shape &xdims, int *Y) {
-  for (const auto i : range(0, xdims.num)) {    // xdims.height
+  for (const auto i : range(0, xdims.height)) {
     auto max_idx = 0;
-    auto max     = X[i * xdims.depth];    // xdims.width
-    for (const auto j : range(0, xdims.depth)) {  // xdims.width
-      const auto elem = X[(i * xdims.depth) + j]; // xdims.width
+    auto max     = X[i * xdims.width];
+    for (const auto j : range(0, xdims.width)) {
+      const auto elem = X[(i * xdims.width) + j];
       if (elem > max) {
         max_idx = j;
         max     = elem;
@@ -234,8 +234,6 @@ void forward_operation(float *x, float *conv1, float *conv2, float *fc1, float *
   auto a            = zeros<float>(adims);
   conv_forward_valid(x, xdims, conv1, conv1dims, a, adims);
 
-  //print_array(a, adims);
-
   // relu layer
   relu4(a, adims);
 
@@ -271,7 +269,7 @@ void forward_operation(float *x, float *conv1, float *conv2, float *fc1, float *
   relu2(e, edims);
 
   // fully connected layer 2: matrix multiplication
-  const shape fdims = {edims.num, fc2dims.width};
+  const shape fdims = {edims.height, fc2dims.width};
   auto f            = zeros<float>(fdims);
   fully_forward(e, edims, fc2, fc2dims, f, fdims);
 
