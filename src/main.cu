@@ -51,7 +51,7 @@ static void generate_data(float *x, const shape &xdims) {
   for (const auto ii : range(0, xdims.flattened_length())) {
     x[ii] = rng_float(rng_state);
   }
-  
+
   delete rng_state;
 }
 
@@ -89,7 +89,8 @@ static void average_pool(const float *X, const shape &xdims, const int pool_size
           const auto yoffset = ((i * ydims.depth + m) * ydims.height + h) * ydims.width + w;
           for (const auto p : range(0, pool_size)) {
             for (const auto q : range(0, pool_size)) {
-              const auto xoffset = ((((i * xdims.depth) + m) * xdims.height) + (pool_size * h + p)) * xdims.width + (pool_size * w + q);
+              const auto xoffset =
+                  ((((i * xdims.depth) + m) * xdims.height) + (pool_size * h + p)) * xdims.width + (pool_size * w + q);
               Y[yoffset] += X[xoffset] * scale;
             }
           }
@@ -118,7 +119,7 @@ static void argmax(const float *X, const shape &xdims, int *Y) {
 static void print_array(const float *data, const shape &dim) {
   std::cout << "Printing array\n";
   for (const auto i : range(0, dim.flattened_length())) {
-    std::cout << (float)data[i] << " ";
+    std::cout << (float) data[i] << " ";
   }
   std::cout << std::endl;
 }
@@ -308,13 +309,14 @@ void backward_operation(float *x, float *conv1, const float *y1, float *dedy, fl
 
 // compare the results from CPU and GPU
 static void compare_solution(float *cpu, const int cpu_size, float *gpu, const int gpu_size) {
+  const float tolerance = 0.01f;
   if (cpu_size != gpu_size) {
     std::cout << "The dimensions does not match.\n";
     return;
   }
   // element-wise comparison: only prints out the first error and halts
   for (const auto i : range(0, cpu_size)) {
-    if (cpu[i] != gpu[i]) {
+    if (std::abs(cpu[i] - gpu[i]) < tolerance) {
       std::cout << "Element " << i << " does not match.\n";
       return;
     }
@@ -329,7 +331,7 @@ int main(int argc, char **argv) {
   float *y = allocate<float>(rdims);
   generate_data(x, xdims);
 
-  //print_array(x, xdims);
+  // print_array(x, xdims);
 
   // Generate model
   float *conv1 = allocate<float>(conv1dims);
