@@ -316,7 +316,7 @@ static void compare_solution(float *cpu, const int cpu_size, float *gpu, const i
   }
   // element-wise comparison: only prints out the first error and halts
   for (const auto i : range(0, cpu_size)) {
-    if (std::abs(cpu[i] - gpu[i]) < tolerance) {
+    if (std::abs(cpu[i] - gpu[i]) > tolerance) {
       std::cout << "Element " << i << " does not match.\n";
       return;
     }
